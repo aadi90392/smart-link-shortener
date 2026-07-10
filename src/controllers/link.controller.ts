@@ -63,3 +63,49 @@ export const getUserLinks = async (req: AuthRequest, res: Response): Promise<voi
     res.status(500).json({ error: 'Server error while fetching links' });
   }
 };
+
+
+export const updateLink = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params; 
+    const parsedBody = CreateLinkSchema.safeParse(req.body); 
+    
+    if (!parsedBody.success) {
+      res.status(400).json({ error: parsedBody.error.flatten().fieldErrors });
+      return;
+    }
+
+    const { originalUrl } = parsedBody.data;
+
+   
+    const link = await Link.findOne({ _id: id, userId: req.user?.id });
+    if (!link) {
+      res.status(404).json({ error: 'Link not found or unauthorized' });
+      return;
+    }
+
+    link.originalUrl = originalUrl;
+    await link.save();
+
+    res.status(200).json({ message: 'Link updated successfully', link });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error while updating link' });
+  }
+};
+
+
+export const deleteLink = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params; 
+
+    const link = await Link.findOneAndDelete({ _id: id, userId: req.user?.id });
+    if (!link) {
+      res.status(404).json({ error: 'Link not found or unauthorized' });
+      return;
+    }
+
+    res.status(200).json({ message: 'Link deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error while deleting link' });
+  }
+};
