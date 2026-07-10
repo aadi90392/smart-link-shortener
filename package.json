@@ -2,7 +2,7 @@
   "name": "smart-link-backend",
   "version": "1.0.0",
   "main": "index.js",
-"scripts": {
+  "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/server.ts"
   },
@@ -19,6 +19,7 @@
     "jsonwebtoken": "^9.0.3",
     "lru-cache": "^11.5.2",
     "mongoose": "^9.7.4",
+    "morgan": "^1.11.0",
     "nanoid": "^5.1.16",
     "zod": "^4.4.3"
   },
@@ -28,6 +29,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",
+    "@types/morgan": "^1.9.10",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
