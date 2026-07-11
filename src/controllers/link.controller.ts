@@ -142,3 +142,54 @@ export const deleteLink = async (req: AuthRequest, res: Response): Promise<void>
     res.status(500).json({ error: 'Server error while deleting link' });
   }
 };
+
+
+export const getLinkAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const link = await Link.findOne({ _id: id, userId: req.user?.id });
+    if (!link) {
+      res.status(404).json({ error: 'Link not found or unauthorized' });
+      return;
+    }
+
+    const clicksOverTime = await ClickEvent.aggregate([
+      { $match: { linkId: link._id } },
+      { 
+        $group: { 
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } }, 
+          count: { $sum: 1 } 
+        } 
+      },
+      { $sort: { _id: 1 } } 
+    ]);
+
+
+    const topReferrers = await ClickEvent.aggregate([
+      { $match: { linkId: link._id } },
+      { $group: { _id: "$referrer", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    
+    const devices = await ClickEvent.aggregate([
+      { $match: { linkId: link._id } },
+      { $group: { _id: "$userAgent", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    res.status(200).json({
+      totalClicks: link.clicks,
+      clicksOverTime,
+      topReferrers,
+      devices
+    });
+
+  } catch (error) {
+    console.error('Analytics Error:', error);
+    res.status(500).json({ error: 'Server error while fetching analytics' });
+  }
+};
