@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "dev": "tsx watch src/server.ts"
   },
   "keywords": [],
@@ -21,16 +21,23 @@
     "mongoose": "^9.7.4",
     "morgan": "^1.11.0",
     "nanoid": "^5.1.16",
+    "ua-parser-js": "^1.0.37",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",
     "@types/morgan": "^1.9.10",
+    "@types/supertest": "^6.0.2",
+    "@types/ua-parser-js": "^0.7.39",
+    "jest": "^29.7.0",
     "nodemon": "^3.1.14",
+    "supertest": "^6.3.4",
+    "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
     "typescript": "^7.0.2"
