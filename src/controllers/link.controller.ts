@@ -3,6 +3,8 @@ import { nanoid } from 'nanoid';
 import { Link } from '../models/Link';
 import { CreateLinkSchema } from '../dtos/link.dto';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import crypto from 'crypto';
+import { ClickEvent } from '../models/ClickEvent';
 
 export const createShortLink = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -12,12 +14,15 @@ export const createShortLink = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const { originalUrl } = parsedBody.data;
-    const shortId = nanoid(8); 
+    const { originalUrl, customAlias, expiresAt } = parsedBody.data;
+    
+    const shortId = customAlias || nanoid(8); 
 
     const newLink = await Link.create({
       originalUrl,
       shortId,
+      customAlias,
+      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
       userId: req.user?.id, 
     });
 
@@ -25,7 +30,12 @@ export const createShortLink = async (req: AuthRequest, res: Response): Promise<
       message: 'Short link created successfully', 
       link: newLink 
     });
-  } catch (error) {
+  } catch (error: any) {
+   
+    if (error.code === 11000) {
+      res.status(400).json({ error: 'Custom alias or Short ID already exists. Please try another.' });
+      return;
+    }
     res.status(500).json({ error: 'Server error while creating link' });
   }
 };
@@ -34,19 +44,40 @@ export const createShortLink = async (req: AuthRequest, res: Response): Promise<
 export const redirectLink = async (req: Request, res: Response): Promise<void> => {
   try {
     const { shortId } = req.params;
-    
-    const link = await Link.findOne({ shortId });
+
+    const link = await Link.findOne({ 
+      $or: [{ shortId: shortId }, { customAlias: shortId }],
+      isActive: true 
+    });
+
     if (!link) {
-      res.status(404).json({ error: 'Link not found' });
+     
+      res.status(410).json({ error: 'Link has expired, deactivated, or does not exist' });
       return;
     }
 
   
-    link.clicks += 1;
-    await link.save();
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const referrer = req.headers['referer'] || 'Direct';
 
    
-    res.redirect(link.originalUrl);
+    const ipHash = crypto.createHash('sha256').update(String(ip)).digest('hex');
+
+    
+    ClickEvent.create({
+      linkId: link._id,
+      referrer,
+      userAgent,
+      ipHash,
+    }).catch(err => console.error('Failed to log click event:', err));
+
+    link.clicks += 1;
+    link.save().catch(err => console.error('Failed to update link clicks:', err));
+
+
+    res.redirect(302, link.originalUrl);
+    
   } catch (error) {
     res.status(500).json({ error: 'Server error during redirect' });
   }
@@ -55,15 +86,12 @@ export const redirectLink = async (req: Request, res: Response): Promise<void> =
 export const getUserLinks = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id; 
-    
     const links = await Link.find({ userId }).sort({ createdAt: -1 }); 
-    
     res.status(200).json({ links });
   } catch (error) {
     res.status(500).json({ error: 'Server error while fetching links' });
   }
 };
-
 
 export const updateLink = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -75,9 +103,8 @@ export const updateLink = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    const { originalUrl } = parsedBody.data;
+    const { originalUrl, customAlias, expiresAt } = parsedBody.data;
 
-   
     const link = await Link.findOne({ _id: id, userId: req.user?.id });
     if (!link) {
       res.status(404).json({ error: 'Link not found or unauthorized' });
@@ -85,14 +112,20 @@ export const updateLink = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     link.originalUrl = originalUrl;
+    if (customAlias) link.customAlias = customAlias;
+    if (expiresAt) link.expiresAt = new Date(expiresAt);
+    
     await link.save();
 
     res.status(200).json({ message: 'Link updated successfully', link });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 11000) {
+       res.status(400).json({ error: 'Custom alias already in use.' });
+       return;
+    }
     res.status(500).json({ error: 'Server error while updating link' });
   }
 };
-
 
 export const deleteLink = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
